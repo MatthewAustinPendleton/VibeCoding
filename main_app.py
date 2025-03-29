@@ -141,31 +141,86 @@ class GameApp:
 
     def _setup_stats_equip_tab(self):
         """Sets up widgets for the Stats & Equipment tab."""
-        self.stats_tab = tk.Frame(self.notebook); self.notebook.add(self.stats_tab, text="Stats & Equip")
-        self.gold_label = tk.Label(self.stats_tab, text=f"Gold: {self.player.gold}", anchor="w"); self.gold_label.pack(fill=tk.X, padx=5, pady=5)
-        self.skills_frame = tk.LabelFrame(self.stats_tab, text="Skills"); self.skills_frame.pack(fill=tk.X, padx=5, pady=5)
+        self.stats_tab = tk.Frame(self.notebook)
+        self.notebook.add(self.stats_tab, text="Stats & Equip")
+
+        # Gold Label
+        self.gold_label = tk.Label(self.stats_tab, text=f"Gold: {self.player.gold}", anchor="w"); 
+        self.gold_label.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Skills Frame
+        self.skills_frame = tk.LabelFrame(self.stats_tab, text="Skills")
+        self.skills_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        # Store both labels
         self.skill_labels = {}
-        for skill_name in self.player.skills: frame = tk.Frame(self.skills_frame); frame.pack(fill=tk.X); lbl = tk.Label(frame, text=f"{skill_name}: ...", anchor="w"); lbl.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5); self.skill_labels[skill_name] = lbl
-        self.equip_frame = tk.LabelFrame(self.stats_tab, text="Equipment"); self.equip_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        self.equip_labels = {}; self.equip_buttons = {}
+        self.skill_icons = {}
+
+        # Icon size for skills 
+        SKILL_ICON_SIZE = 50
+
+        for skill_name in self.player.skills:
+            frame = tk.Frame(self.skills_frame)
+            frame.pack(fill=tk.X)
+            try:
+                icon_path = f"icon_{skill_name.lower()}.png"
+                img = Image.open(icon_path)
+                img = img.resize((SKILL_ICON_SIZE, SKILL_ICON_SIZE), Image.LANCZOS)
+                photo = ImageTk.PhotoImage(img)
+                icon_label = tk.Label(frame, image=photo)
+                icon_label.image = photo
+                icon_label.pack(side=tk.LEFT, padx=(5, 2))
+                self.skill_icons[skill_name] = icon_label
+            except Exception as e:
+                print(f"Could not load icon for {skill_name}: {e}")
+
+            # Skill level label
+            lbl = tk.Label(frame, text=f"{skill_name}: ...", anchor="w")
+            lbl.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+            self.skill_labels[skill_name] = lbl
+        
+        # Equipment Frame
+        self.equip_frame = tk.LabelFrame(self.stats_tab, text="Equipment")
+        self.equip_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.equip_labels = {}
+        self.equip_buttons = {}
+
+        # Equipment Slots
         for slot in const.EQUIPMENT_SLOTS:
-             frame = tk.Frame(self.equip_frame); frame.pack(fill=tk.X); slot_display_name = slot.replace('_',' ').title()
-             slot_label = tk.Label(frame, text=f"{slot_display_name}:", width=10, anchor='w'); slot_label.pack(side=tk.LEFT, padx=(5,0))
-             item_label = tk.Label(frame, text="Empty", anchor='w'); item_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5); self.equip_labels[slot] = item_label
-             unequip_btn = tk.Button(frame, text="Unequip", width=7, command=lambda s=slot: self.unequip_from_slot(s), state=tk.DISABLED); unequip_btn.pack(side=tk.RIGHT, padx=(0, 5)); self.equip_buttons[slot] = unequip_btn
+            frame = tk.Frame(self.equip_frame)
+            frame.pack(fill=tk.X)
+
+            # Slot name label
+            slot_display_name = slot.replace("_", " ").title()
+            slot_label = tk.Label(frame, text=f"{slot_display_name}:", width=10, anchor="w")
+            slot_label.pack(side=tk.LEFT, padx=(5, 0))
+
+            # Item label (shows equipped item or "Empty")
+            item_label = tk.Label(frame, text="Empty", anchor="w")
+            item_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+            self.equip_labels[slot] = item_label
+
+            # Unequip Button
+            unequip_btn = tk.Button(frame, text="Unequip", width=7, 
+                                    command=lambda s=slot: self.unequip_from_slot(s),
+                                    state=tk.DISABLED)
+            unequip_btn.pack(side=tk.RIGHT, padx=(0, 5))
+            self.equip_buttons[slot] = unequip_btn
 
     def create_slot_frame(self, parent, index, cols):
         """Creates the 80x80 frame and packs icon (48x48) and text inside."""
         frame = tk.Frame(parent, borderwidth=1, relief=tk.SUNKEN, height=MIN_SLOT_HEIGHT, width=MIN_SLOT_WIDTH, bg="grey85")
         frame.pack_propagate(False); frame.grid(row=index // cols, column=index % cols, padx=2, pady=2, sticky="nsew")
-        frame.bind('<Button-1>', lambda e, i=index: self.on_slot_click(i)); frame.bind('<Button-3>', lambda e, i=index: self.on_slot_right_click(i, e))
+        frame.bind('<Button-1>', lambda e, i=index: self.on_slot_click(i))
+        frame.bind('<Button-3>', lambda e, i=index: self.on_slot_right_click(i, e))
         icon_lbl = tk.Label(frame, anchor=tk.CENTER, bg=frame.cget('bg'))
         icon_lbl.pack(side=tk.TOP, pady=(2, 0), fill=tk.X)
         icon_lbl.bind('<Button-1>', lambda e, i=index: self.on_slot_click(i)); icon_lbl.bind('<Button-3>', lambda e, i=index: self.on_slot_right_click(i, e))
         text_wraplength = MIN_SLOT_WIDTH - 10
         text_lbl = tk.Label(frame, text="", anchor=tk.N, justify=tk.CENTER, wraplength=text_wraplength, bg=frame.cget('bg'), font=("TkDefaultFont", 8))
         text_lbl.pack(side=tk.TOP, fill=tk.X, expand=True, pady=(2, 2))
-        text_lbl.bind('<Button-1>', lambda e, i=index: self.on_slot_click(i)); text_lbl.bind('<Button-3>', lambda e, i=index: self.on_slot_right_click(i, e))
+        text_lbl.bind('<Button-1>', lambda e, i=index: self.on_slot_click(i))
+        text_lbl.bind('<Button-3>', lambda e, i=index: self.on_slot_right_click(i, e))
         self.inv_slot_widgets.append({'frame': frame, 'icon': icon_lbl, 'text': text_lbl})
 
     # --- UI Update Functions ---
